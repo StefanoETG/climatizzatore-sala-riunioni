@@ -1,17 +1,22 @@
-name: Ping Replit Apps per mantenerle attive
+name: Ping Replit Apps
 
 on:
   schedule:
     - cron: '*/10 * * * *'  # ogni 10 minuti
-  workflow_dispatch:
+  workflow_dispatch:  # anche avvio manuale
 
 jobs:
-  ping-apps:
+  ping:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ping app REPLIT_URL
-        run: curl -fsSL ${{ secrets.REPLIT_URL }} || echo "Ping REPLIT_URL fallito"
+      - name: Ping REPLIT_URL con POST
+        run: |
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"action":"ping","token":"${{ secrets.REPLIT_TOKEN }}"}' \
+            "${{ secrets.REPLIT_URL }}" || echo "Ping REPLIT_URL fallito"
 
-      - name: Ping app REPLIT_URL_STATE
-        run: curl -fsSL ${{ secrets.REPLIT_URL_STATE }} || echo "Ping REPLIT_URL_STATE fallito"
+      - name: Ping REPLIT_URL_STATE con GET
+        run: |
+          curl -sSL "${{ secrets.REPLIT_URL_STATE }}" || echo "Ping REPLIT_URL_STATE fallito"
