@@ -1,0 +1,24 @@
+name: Test Lettura Calendario Sala Riunioni
+
+on:
+  workflow_dispatch:
+
+jobs:
+  leggi-calendario:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clona il repository
+        uses: actions/checkout@v3
+
+      - name: Installa le dipendenze
+        run: |
+          pip install msal requests
+
+      - name: Esegui lo script di lettura calendario
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          python check_calendar.py
