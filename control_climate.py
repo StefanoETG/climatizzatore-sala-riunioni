@@ -48,7 +48,7 @@ def main():
     end_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
 
     # Chiamata corretta con tutti e 4 gli argomenti
-    eventi = get_calendar_events(client, TIMEZONE, start_day.isoformat(), end_day.isoformat())
+    eventi = get_calendar_events(client, TIMEZONE, start_day, end_day)
     print(f"Eventi oggi: {eventi}")
 
     # Carica stato clima
