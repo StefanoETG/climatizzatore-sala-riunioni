@@ -13,7 +13,7 @@ jobs:
 
       - name: Installa le dipendenze
         run: |
-          pip install msal requests
+          pip install msal requests python-dateutil pytz
 
       - name: Esegui lo script di lettura calendario
         env:
