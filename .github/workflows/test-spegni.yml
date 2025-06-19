@@ -1,0 +1,12 @@
+name: Test Spegni Clima
+
+on:
+  workflow_dispatch:
+
+jobs:
+  spegni-clima:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Spegni clima
+        run: |
+          curl -X POST "https://38ebb343-e06e-485b-8279-df66a907e5e2-00-tytogezsfnhn.picard.replit.dev/clima" -d '{"action": "stop"}' -H "Content-Type: application/json"
