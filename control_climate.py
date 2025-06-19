@@ -3,6 +3,7 @@ import json
 import os
 import requests
 from dateutil import tz
+from msal import ConfidentialClientApplication
 from check_calendar import get_calendar_events  # importa la tua funzione già pronta
 
 # Configurazioni
@@ -35,11 +36,19 @@ def main():
     now = datetime.datetime.now(TIMEZONE)
     print(f"Ora corrente: {now}")
 
-    # Leggi eventi da calendario dalle 8 di oggi a 18 di oggi
+    # Creazione client MSAL
+    client = ConfidentialClientApplication(
+        client_id=os.getenv("AZURE_CLIENT_ID"),
+        client_credential=os.getenv("AZURE_CLIENT_SECRET"),
+        authority=f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID')}"
+    )
+
+    # Definisci intervallo da 8:00 a 18:00 oggi
     start_day = now.replace(hour=8, minute=0, second=0, microsecond=0)
     end_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
 
-    eventi = get_calendar_events(start_day.isoformat(), end_day.isoformat())
+    # Chiamata corretta con tutti e 4 gli argomenti
+    eventi = get_calendar_events(client, TIMEZONE, start_day.isoformat(), end_day.isoformat())
     print(f"Eventi oggi: {eventi}")
 
     # Carica stato clima
@@ -89,13 +98,11 @@ def main():
                     print("Prossima riunione entro 35 minuti, clima acceso: mantieni acceso")
                     accendi = True
                 else:
-                    # clima spento e riunione più lontana di 20 min -> mantieni spento
                     print("Prossima riunione oltre 20 min ma entro 35 min, clima spento: mantieni spento")
                     accendi = False
             else:
                 # nessuna riunione entro 35 min
                 if climate_on:
-                    # controlla se sono passati 20 min da fine ultimo evento
                     if last_off_time and (now - last_off_time).total_seconds() / 60 >= 20:
                         print("Nessuna riunione entro 35 minuti e 20 min passati da ultimo spegnimento: spegni clima")
                         spegni = True
