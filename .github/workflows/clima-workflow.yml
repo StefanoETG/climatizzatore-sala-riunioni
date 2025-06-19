@@ -1,25 +1,28 @@
 name: Controllo Clima Sala Riunioni
 
 on:
-  # schedule:
-  #   - cron: '*/10 8-18 * * 1-5' # ogni 10 minuti, dalle 8 alle 18, lun-ven
-  workflow_dispatch: # permette anche di far partire manualmente il workflow
+  schedule:
+    - cron: '*/10 8-18 * * 1-5'  # ogni 10 minuti dalle 8 alle 18, lun-ven
+  workflow_dispatch:  # per trigger manuale
 
 jobs:
-  accendi-clima:
+  controllo-clima:
     runs-on: ubuntu-latest
-    steps:
-      - name: Accendi clima
-        run: |
-          curl -X POST "${{ secrets.REPLIT_URL }}" \
-          -H "Content-Type: application/json" \
-          -d "{\"action\": \"start\", \"token\": \"${{ secrets.REPLIT_TOKEN }}\"}"
 
-  spegni-clima:
-    runs-on: ubuntu-latest
     steps:
-      - name: Spegni clima
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Installa dipendenze
         run: |
-          curl -X POST "${{ secrets.REPLIT_URL }}" \
-          -H "Content-Type: application/json" \
-          -d "{\"action\": \"stop\", \"token\": \"${{ secrets.REPLIT_TOKEN }}\"}"
+          pip install msal requests python-dateutil
+
+      - name: Esegui script controllo clima
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          REPLIT_URL: ${{ secrets.REPLIT_URL }}
+          REPLIT_TOKEN: ${{ secrets.REPLIT_TOKEN }}
+        run: |
+          python control_climate.py
