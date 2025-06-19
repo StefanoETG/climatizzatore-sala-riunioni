@@ -1,8 +1,8 @@
 name: Controllo Clima Sala Riunioni
 
 on:
-  schedule:
-    - cron: '*/10 8-18 * * 1-5' # ogni 10 minuti, dalle 8 alle 18, lun-ven
+  # schedule:
+  #  - cron: '*/10 8-18 * * 1-5' # ogni 10 minuti, dalle 8 alle 18, lun-ven
   workflow_dispatch: # permette anche di far partire manualmente il workflow
 
 jobs:
