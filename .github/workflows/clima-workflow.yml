@@ -1,0 +1,22 @@
+name: Controllo Clima Sala Riunioni
+
+on:
+  schedule:
+    - cron: '*/10 8-18 * * 1-5' # ogni 10 minuti, dalle 8 alle 18, lun-ven
+  workflow_dispatch: # permette anche di far partire manualmente il workflow
+
+jobs:
+  accendi-clima:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Accendi clima
+        run: |
+          curl -X POST "https://38ebb343-e06e-485b-8279-df66a907e5e2-00-tytogezsfnhn.picard.replit.dev/clima" -d '{"action": "start"}' -H "Content-Type: application/json"
+
+  spegni-clima:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Spegni clima
+        run: |
+          curl -X POST "https://38ebb343-e06e-485b-8279-df66a907e5e2-00-tytogezsfnhn.picard.replit.dev/clima" -d '{"action": "stop"}' -H "Content-Type: application/json"
+
