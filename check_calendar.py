@@ -1,53 +1,61 @@
-import msal
+import os
 import requests
 import datetime
-import os
+from zoneinfo import ZoneInfo
+from msal import ConfidentialClientApplication
+from dateutil import parser
 
-# Prendi i valori dai secrets GitHub impostati come variabili d’ambiente
-TENANT_ID = os.getenv("AZURE_TENANT_ID")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
-CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
-RESOURCE_EMAIL = "salariunioni@etgrisorse.com"
+# Configura fuso orario italiano
+italy_tz = ZoneInfo("Europe/Rome")
+now = datetime.datetime.now(italy_tz)
+end_time = now + datetime.timedelta(hours=2)
 
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-SCOPE = ["https://graph.microsoft.com/.default"]
-GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0"
+# Parametri da GitHub secrets
+tenant_id = os.environ["AZURE_TENANT_ID"]
+client_id = os.environ["AZURE_CLIENT_ID"]
+client_secret = os.environ["AZURE_CLIENT_SECRET"]
 
-def get_access_token():
-    app = msal.ConfidentialClientApplication(
-        CLIENT_ID,
-        authority=AUTHORITY,
-        client_credential=CLIENT_SECRET,
-    )
-    result = app.acquire_token_for_client(scopes=SCOPE)
-    if "access_token" in result:
-        return result["access_token"]
-    else:
-        raise Exception("Impossibile ottenere token: " + str(result))
+authority = f"https://login.microsoftonline.com/{tenant_id}"
+scope = ["https://graph.microsoft.com/.default"]
 
-def get_calendar_events(token, start_time, end_time):
-    headers = {"Authorization": "Bearer " + token}
-    url = f"{GRAPH_ENDPOINT}/users/{RESOURCE_EMAIL}/calendarView"
-    params = {
-        "startDateTime": start_time.isoformat(),
-        "endDateTime": end_time.isoformat(),
-        "$orderby": "start/dateTime",
-    }
-    response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
-    return response.json().get("value", [])
+# ID della risorsa condivisa (sala riunioni)
+room_email = "salariunioni@etgrisorse.com"
 
-def main():
-    now = datetime.datetime.utcnow()
-    start = now
-    end = now + datetime.timedelta(hours=2)
+# Ottieni token di accesso con MSAL
+app = ConfidentialClientApplication(client_id, authority=authority, client_credential=client_secret)
+result = app.acquire_token_for_client(scopes=scope)
 
-    token = get_access_token()
-    events = get_calendar_events(token, start, end)
+if "access_token" not in result:
+    print("Errore durante l'autenticazione:", result.get("error_description"))
+    exit(1)
 
-    print(f"Eventi Sala Riunioni dalle {start} alle {end}:")
-    for ev in events:
-        print(f"- {ev['subject']} da {ev['start']['dateTime']} a {ev['end']['dateTime']}")
+# Imposta intestazioni per Graph API
+headers = {
+    "Authorization": f"Bearer {result['access_token']}",
+    "Content-Type": "application/json"
+}
 
-if __name__ == "__main__":
-    main()
+# Intervallo temporale in formato ISO 8601
+start_iso = now.isoformat()
+end_iso = end_time.isoformat()
+
+# Richiesta eventi al calendario della sala riunioni
+url = f"https://graph.microsoft.com/v1.0/users/{room_email}/calendarview?startDateTime={start_iso}&endDateTime={end_iso}&$orderby=start/dateTime"
+
+response = requests.get(url, headers=headers)
+
+if response.status_code != 200:
+    print("Errore nella richiesta Graph API:", response.text)
+    exit(1)
+
+events = response.json().get("value", [])
+
+print(f"Eventi Sala Riunioni dalle {start_iso} alle {end_iso}:")
+
+if not events:
+    print("- Nessun evento trovato.")
+else:
+    for event in events:
+        start = parser.parse(event["start"]["dateTime"]).astimezone(italy_tz)
+        end = parser.parse(event["end"]["dateTime"]).astimezone(italy_tz)
+        print(f"- {event['subject']}  da {start} a {end}")
