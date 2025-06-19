@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Accendi clima
         run: |
-          curl -X POST "https://38ebb343-e06e-485b-8279-df66a907e5e2-00-tytogezsfnhn.picard.replit.dev/clima" \
+          curl -X POST "${{ secrets.REPLIT_URL }}" \
           -H "Content-Type: application/json" \
           -d "{\"action\": \"start\", \"token\": \"${{ secrets.REPLIT_TOKEN }}\"}"
 
@@ -20,6 +20,6 @@ jobs:
     steps:
       - name: Spegni clima
         run: |
-          curl -X POST "https://38ebb343-e06e-485b-8279-df66a907e5e2-00-tytogezsfnhn.picard.replit.dev/clima" \
+          curl -X POST "${{ secrets.REPLIT_URL }}" \
           -H "Content-Type: application/json" \
           -d "{\"action\": \"stop\", \"token\": \"${{ secrets.REPLIT_TOKEN }}\"}"
