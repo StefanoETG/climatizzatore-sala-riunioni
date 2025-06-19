@@ -48,7 +48,16 @@ def main():
     end_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
 
     # Chiamata corretta con tutti e 4 gli argomenti
-    eventi = get_calendar_events(client, TIMEZONE, start_day, end_day)
+    from check_calendar import get_access_token  # importa la funzione anche questa
+
+    tenant_id = os.environ["AZURE_TENANT_ID"]
+    client_id = os.environ["AZURE_CLIENT_ID"]
+    client_secret = os.environ["AZURE_CLIENT_SECRET"]
+    calendar_id = "salariunioni@etgrisorse.com"
+
+    token = get_access_token(tenant_id, client_id, client_secret)
+    eventi = get_calendar_events(token, calendar_id, start_day, end_day)
+
     print(f"Eventi oggi: {eventi}")
 
     # Carica stato clima
