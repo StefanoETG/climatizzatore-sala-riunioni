@@ -21,10 +21,16 @@ def get_access_token(tenant_id, client_id, client_secret):
         raise Exception(f"Errore nell'acquisizione token: {result.get('error_description')}")
 
 def get_calendar_events(access_token, calendar_id, start_datetime, end_datetime):
+    # Gestione robusta: se riceve datetime, converte in stringa ISO
+    if isinstance(start_datetime, datetime.datetime):
+        start_datetime = start_datetime.isoformat()
+    if isinstance(end_datetime, datetime.datetime):
+        end_datetime = end_datetime.isoformat()
+
     headers = {"Authorization": f"Bearer {access_token}"}
     params = {
-        "startDateTime": start_datetime.isoformat(),
-        "endDateTime": end_datetime.isoformat(),
+        "startDateTime": start_datetime,
+        "endDateTime": end_datetime,
         "$orderby": "start/dateTime",
     }
     url = f"https://graph.microsoft.com/v1.0/users/{calendar_id}/calendarview"
