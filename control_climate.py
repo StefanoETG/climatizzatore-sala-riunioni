@@ -105,7 +105,8 @@ def main():
                     accendi = False
         else:
             if climate_on:
-                if last_off_time and (now - last_off_time).total_seconds() / 60 >= 20:
+                # MODIFICA QUI: spegni se last_off_time è None oppure se sono passati 20 min
+                if (last_off_time is None) or ((now - last_off_time).total_seconds() / 60 >= 20):
                     print("Fine giornata, spegni clima")
                     spegni = True
                 else:
