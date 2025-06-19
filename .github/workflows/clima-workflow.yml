@@ -23,6 +23,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           REPLIT_URL: ${{ secrets.REPLIT_URL }}
+          REPLIT_URL_STATE: ${{ secrets.REPLIT_URL_STATE }}    # <-- aggiunto qui
           REPLIT_TOKEN: ${{ secrets.REPLIT_TOKEN }}
         run: |
           python control_climate.py
