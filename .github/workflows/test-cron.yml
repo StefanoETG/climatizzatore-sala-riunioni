@@ -1,0 +1,13 @@
+name: Test Cron Trigger
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # ogni 5 minuti
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say Hello
+        run: echo "Ciao! Sono partito alle $(date)"
