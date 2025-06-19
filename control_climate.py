@@ -2,12 +2,12 @@ import datetime
 import json
 import os
 import requests
-from dateutil import tz
+from dateutil import tz, parser
 from msal import ConfidentialClientApplication
-from check_calendar import get_calendar_events  # importa la tua funzione già pronta
+from check_calendar import get_calendar_events, get_access_token
 
 # Configurazioni
-REPLIT_URL = os.getenv("REPLIT_URL")  # metti il secret in env
+REPLIT_URL = os.getenv("REPLIT_URL")
 REPLIT_TOKEN = os.getenv("REPLIT_TOKEN")
 
 STATE_FILE = "climate_state.json"
@@ -36,56 +36,40 @@ def main():
     now = datetime.datetime.now(TIMEZONE)
     print(f"Ora corrente: {now}")
 
-    # Creazione client MSAL
-    client = ConfidentialClientApplication(
-        client_id=os.getenv("AZURE_CLIENT_ID"),
-        client_credential=os.getenv("AZURE_CLIENT_SECRET"),
-        authority=f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID')}"
-    )
-
-    # Definisci intervallo da 8:00 a 18:00 oggi
-    start_day = now.replace(hour=8, minute=0, second=0, microsecond=0)
-    end_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
-
-    # Chiamata corretta con tutti e 4 gli argomenti
-    from check_calendar import get_access_token  # importa la funzione anche questa
-
     tenant_id = os.environ["AZURE_TENANT_ID"]
     client_id = os.environ["AZURE_CLIENT_ID"]
     client_secret = os.environ["AZURE_CLIENT_SECRET"]
     calendar_id = "salariunioni@etgrisorse.com"
 
     token = get_access_token(tenant_id, client_id, client_secret)
-    eventi = get_calendar_events(token, calendar_id, start_day, end_day)
 
+    start_day = now.replace(hour=8, minute=0, second=0, microsecond=0)
+    end_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
+
+    eventi = get_calendar_events(token, calendar_id, start_day, end_day)
     print(f"Eventi oggi: {eventi}")
 
-    # Carica stato clima
     state = load_state()
     climate_on = state.get("climate_on", False)
     last_off_time = state.get("last_off_time")
     if last_off_time:
         last_off_time = datetime.datetime.fromisoformat(last_off_time)
 
-    # Trova evento attuale e prossimo evento
     evento_corrente = None
     prossimo_evento = None
 
     for ev in eventi:
-        inizio = datetime.datetime.fromisoformat(ev['start']).astimezone(TIMEZONE)
-        fine = datetime.datetime.fromisoformat(ev['end']).astimezone(TIMEZONE)
+        inizio = parser.isoparse(ev['start']['dateTime']).astimezone(TIMEZONE)
+        fine = parser.isoparse(ev['end']['dateTime']).astimezone(TIMEZONE)
         if inizio <= now <= fine:
             evento_corrente = ev
-        elif inizio > now and (not prossimo_evento or inizio < datetime.datetime.fromisoformat(prossimo_evento['start']).astimezone(TIMEZONE)):
+        elif inizio > now and (not prossimo_evento or inizio < parser.isoparse(prossimo_evento['start']['dateTime']).astimezone(TIMEZONE)):
             prossimo_evento = ev
 
-    # Regole di accensione/spegnimento
     accendi = False
     spegni = False
 
-    # Orario spegnimento fisso
     if now.hour == 18 and now.minute < 10:
-        # entro i primi 10 minuti delle 18, spegni sempre
         if climate_on:
             print("Ora 18:00, spegnimento forzato clima.")
             spegni = True
@@ -95,14 +79,13 @@ def main():
         accendi = True
     else:
         if prossimo_evento:
-            inizio_prossimo = datetime.datetime.fromisoformat(prossimo_evento['start']).astimezone(TIMEZONE)
-            delta_inizio = (inizio_prossimo - now).total_seconds() / 60  # minuti
+            inizio_prossimo = parser.isoparse(prossimo_evento['start']['dateTime']).astimezone(TIMEZONE)
+            delta_inizio = (inizio_prossimo - now).total_seconds() / 60
 
             if delta_inizio <= 20:
                 print("Prossima riunione entro 20 minuti: accendi clima")
                 accendi = True
             elif delta_inizio <= 35:
-                # Se clima acceso mantieni acceso
                 if climate_on:
                     print("Prossima riunione entro 35 minuti, clima acceso: mantieni acceso")
                     accendi = True
@@ -110,7 +93,6 @@ def main():
                     print("Prossima riunione oltre 20 min ma entro 35 min, clima spento: mantieni spento")
                     accendi = False
             else:
-                # nessuna riunione entro 35 min
                 if climate_on:
                     if last_off_time and (now - last_off_time).total_seconds() / 60 >= 20:
                         print("Nessuna riunione entro 35 minuti e 20 min passati da ultimo spegnimento: spegni clima")
@@ -122,7 +104,6 @@ def main():
                     print("Clima spento e nessuna riunione prossima: mantieni spento")
                     accendi = False
         else:
-            # Nessun prossimo evento (fine giornata)
             if climate_on:
                 if last_off_time and (now - last_off_time).total_seconds() / 60 >= 20:
                     print("Fine giornata, spegni clima")
@@ -133,7 +114,6 @@ def main():
             else:
                 print("Fine giornata, clima spento")
 
-    # Azioni sul clima
     if accendi and not climate_on:
         send_command("start")
         state["climate_on"] = True
