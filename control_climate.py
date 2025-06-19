@@ -7,21 +7,40 @@ from msal import ConfidentialClientApplication
 from check_calendar import get_calendar_events, get_access_token
 
 # Configurazioni
-REPLIT_URL = os.getenv("REPLIT_URL")
+REPLIT_URL = os.getenv("REPLIT_URL")              # per comandi start/stop
+REPLIT_URL_STATE = os.getenv("REPLIT_URL_STATE")  # per leggere/scrivere stato JSON
 REPLIT_TOKEN = os.getenv("REPLIT_TOKEN")
 
-STATE_FILE = "climate_state.json"
 TIMEZONE = tz.gettz("Europe/Rome")
 
 def load_state():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
+    """Carica lo stato remoto da Replit."""
+    try:
+        headers = {"Authorization": f"Bearer {REPLIT_TOKEN}"}
+        resp = requests.get(REPLIT_URL_STATE, headers=headers)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            print(f"Errore caricamento stato remoto: {resp.status_code} {resp.text}")
+    except Exception as e:
+        print(f"Eccezione caricamento stato remoto: {e}")
+    # fallback a stato di default
     return {"climate_on": False, "last_off_time": None}
 
 def save_state(state):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
+    """Salva lo stato remoto su Replit."""
+    try:
+        headers = {
+            "Authorization": f"Bearer {REPLIT_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        resp = requests.post(REPLIT_URL_STATE, headers=headers, json=state)
+        if resp.status_code == 200:
+            print("Stato remoto salvato con successo.")
+        else:
+            print(f"Errore salvataggio stato remoto: {resp.status_code} {resp.text}")
+    except Exception as e:
+        print(f"Eccezione salvataggio stato remoto: {e}")
 
 def send_command(action):
     headers = {"Content-Type": "application/json"}
@@ -105,7 +124,6 @@ def main():
                     accendi = False
         else:
             if climate_on:
-                # MODIFICA QUI: spegni se last_off_time è None oppure se sono passati 20 min
                 if (last_off_time is None) or ((now - last_off_time).total_seconds() / 60 >= 20):
                     print("Fine giornata, spegni clima")
                     spegni = True
