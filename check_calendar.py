@@ -1,61 +1,64 @@
-import os
-import requests
 import datetime
 from zoneinfo import ZoneInfo
+import requests
 from msal import ConfidentialClientApplication
-from dateutil import parser
 
-# Configura fuso orario italiano
-italy_tz = ZoneInfo("Europe/Rome")
-now = datetime.datetime.now(italy_tz)
-end_time = now + datetime.timedelta(hours=2)
+# Configurazione variabili ambiente (passate da GitHub secrets)
+import os
 
-# Parametri da GitHub secrets
-tenant_id = os.environ["AZURE_TENANT_ID"]
-client_id = os.environ["AZURE_CLIENT_ID"]
-client_secret = os.environ["AZURE_CLIENT_SECRET"]
+TENANT_ID = os.getenv("AZURE_TENANT_ID")
+CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
 
-authority = f"https://login.microsoftonline.com/{tenant_id}"
-scope = ["https://graph.microsoft.com/.default"]
+# Funzione per ottenere token da Azure AD
+def get_access_token():
+    app = ConfidentialClientApplication(
+        CLIENT_ID,
+        authority=f"https://login.microsoftonline.com/{TENANT_ID}",
+        client_credential=CLIENT_SECRET,
+    )
+    scopes = ["https://graph.microsoft.com/.default"]
+    result = app.acquire_token_silent(scopes, account=None)
+    if not result:
+        result = app.acquire_token_for_client(scopes=scopes)
+    if "access_token" in result:
+        return result["access_token"]
+    else:
+        raise Exception("Impossibile ottenere token di accesso: " + str(result))
 
-# ID della risorsa condivisa (sala riunioni)
-room_email = "salariunioni@etgrisorse.com"
+def get_events(access_token, start_time, end_time):
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {
+        "startDateTime": start_time.isoformat(timespec='seconds'),
+        "endDateTime": end_time.isoformat(timespec='seconds'),
+    }
+    url = "https://graph.microsoft.com/v1.0/users/salariunioni@etgrisorse.com/calendarView"
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code != 200:
+        raise Exception(f"Errore nella richiesta Graph API: {response.text}")
+    return response.json().get("value", [])
 
-# Ottieni token di accesso con MSAL
-app = ConfidentialClientApplication(client_id, authority=authority, client_credential=client_secret)
-result = app.acquire_token_for_client(scopes=scope)
+def main():
+    # Usa timezone Europa/Roma
+    tz = ZoneInfo("Europe/Rome")
 
-if "access_token" not in result:
-    print("Errore durante l'autenticazione:", result.get("error_description"))
-    exit(1)
+    now = datetime.datetime.now(tz)
+    start_time = now
+    end_time = now + datetime.timedelta(hours=2)
 
-# Imposta intestazioni per Graph API
-headers = {
-    "Authorization": f"Bearer {result['access_token']}",
-    "Content-Type": "application/json"
-}
+    print(f"Eventi Sala Riunioni dalle {start_time} alle {end_time}:")
 
-# Intervallo temporale in formato ISO 8601
-start_iso = now.isoformat()
-end_iso = end_time.isoformat()
+    token = get_access_token()
+    events = get_events(token, start_time, end_time)
 
-# Richiesta eventi al calendario della sala riunioni
-url = f"https://graph.microsoft.com/v1.0/users/{room_email}/calendarview?startDateTime={start_iso}&endDateTime={end_iso}&$orderby=start/dateTime"
+    if not events:
+        print("Nessun evento trovato.")
+    else:
+        for ev in events:
+            subject = ev.get("subject", "Senza titolo")
+            start = ev["start"]["dateTime"]
+            end = ev["end"]["dateTime"]
+            print(f"- {subject}  da {start} a {end}")
 
-response = requests.get(url, headers=headers)
-
-if response.status_code != 200:
-    print("Errore nella richiesta Graph API:", response.text)
-    exit(1)
-
-events = response.json().get("value", [])
-
-print(f"Eventi Sala Riunioni dalle {start_iso} alle {end_iso}:")
-
-if not events:
-    print("- Nessun evento trovato.")
-else:
-    for event in events:
-        start = parser.parse(event["start"]["dateTime"]).astimezone(italy_tz)
-        end = parser.parse(event["end"]["dateTime"]).astimezone(italy_tz)
-        print(f"- {event['subject']}  da {start} a {end}")
+if __name__ == "__main__":
+    main()
